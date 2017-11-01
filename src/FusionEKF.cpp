@@ -122,7 +122,26 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * Use noise_ax = 9 and noise_ay = 9 for your Q matrix.
    */
 
+  //Compute time elapsed between current and previous measurements
+  float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0; // dt - expressed in seconds
+  previous_timestamp_ = measurement_pack.timestamp_;
+
+  //Update F matrix so that time is integrated
+  ekf_.F_(0,2) = dt;
+  ekf_.F_(1,3) = dt;
+  // Set the process covariance matrix Q
+  float dt4 = pow(dt, 4);
+  float dt3 = pow(dt, 3);
+  float dt2 = pow(dt, 2);
+
+  ekf_.Q_ = MatrixXd(4, 4);
+  ekf_.Q_ << dt4/4*noise_ax, 0, dt3/2*noise_ax, 0,
+            0, dt4/4*noise_ay, 0, dt3/2*noise_ay,
+            dt3/2*noise_ax, 0, dt2*noise_ax, 0,
+            0, dt3/2*noise_ay, 0, dt2*noise_ay;
+
   ekf_.Predict();
+
 
   /*****************************************************************************
    *  Update
@@ -136,8 +155,9 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
+    
   } else {
-    // Laser updates
+    ekf_.Update(measurement_pack.raw_measurements_);
   }
 
   // print the output
