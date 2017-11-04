@@ -1,4 +1,6 @@
+#include <iostream>
 #include "kalman_filter.h"
+#include "tools.h"
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -35,8 +37,7 @@ void KalmanFilter::Update(const VectorXd &z) {
   TODO:
     * update the state by using Kalman Filter equations
   */
-  VectorXd z_pred = H_ * x_;
-  VectorXd y = z - z_pred;
+  VectorXd y = z - H_ * x_;
   MatrixXd Ht = H_.transpose();
   MatrixXd S = H_ * P_ * Ht + R_;
   MatrixXd K = P_ * Ht * S.inverse();
@@ -54,20 +55,32 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   TODO:
     * update the state by using Extended Kalman Filter equations
   */
+  Tools tools;
   float px = x_[0];
   float py = x_[1];
   float vx = x_[2];
   float vy = x_[3];
 
+  const float PI = 4*atan(1);
+
   float rho = sqrt(pow(px, 2) + pow(py, 2));
-  float phi = atan(py/px);
+  float phi = atan2(py, px);
   float rhodot = (px*vx + py*vy)/rho;
+  
   VectorXd hx = VectorXd(3);
+  
   hx << rho, phi, rhodot;
   //Calculate difference between measured and calculated sensor data
   VectorXd y = z - hx;
+  if(y[1] < -PI) {
+    y[1] += 2*PI;
+  }
+  if(y[1] > PI) {
+    y[1] -= 2*PI;
+  }
+  // std::cout << "Phi: " << y[1] << endl;
 
-  H_ = CalculateJacobian(x_);
+  H_ = tools.CalculateJacobian(x_);
 
   MatrixXd Ht = H_.transpose();
   MatrixXd S = H_ * P_ * Ht + R_;
@@ -80,37 +93,3 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   P_ = (I - K * H_) * P_;
 }
 
-MatrixXd KalmanFilter::CalculateJacobian(const VectorXd& x_state) {
-
-  MatrixXd Hj(3,4);
-  //recover state parameters
-  float px = x_state(0);
-  float py = x_state(1);
-  float vx = x_state(2);
-  float vy = x_state(3);
-
-  //TODO: YOUR CODE HERE 
-
-  //check division by zero
-  if(px == 0 && py == 0) {
-      Hj << 0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 0;
-  } else {
-  //compute the Jacobian matrix
-      float px2 = pow(px, 2);
-      float py2 = pow(py, 2);
-      float dpdpx = px/sqrt(px2 + py2);
-      float dpdpy = py/sqrt(px2 + py2);
-      float drdpx = -py/(px2 + py2);
-      float drdpy = px/(px2 + py2);
-      float dpddpx = py*(vx*py - vy*px)/(sqrt(pow(px2 + py2, 3)));
-      float dpddpy = px*(vy*px - vx*py)/(sqrt(pow(px2 + py2, 3)));
-      float dpddvx = dpdpx;
-      float dpddvy = dpdpy;
-        Hj << dpdpx, dpdpy, 0, 0,
-              drdpx, drdpy, 0, 0,
-              dpddpx, dpddpy, dpddvx, dpddvy;
-  }
-  return Hj;
-}

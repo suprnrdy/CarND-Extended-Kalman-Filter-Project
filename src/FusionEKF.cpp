@@ -56,8 +56,8 @@ FusionEKF::FusionEKF() {
   ekf_.P_ = MatrixXd(4, 4);
   ekf_.P_ << 1, 0, 0, 0,
             0, 1, 0, 0,
-            0, 0, 1000, 0,
-            0, 0, 0, 1000;
+            0, 0, 1, 0,
+            0, 0, 0, 1;
 
   noise_ax = 9;
   noise_ay = 9;
@@ -92,8 +92,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       */
       float phi = measurement_pack.raw_measurements_[1];
       float rho = measurement_pack.raw_measurements_[0]; 
-      float px = rho * cos(phi);
-      float py = rho * sin(phi);
+      float px = rho * cos(-phi);
+      float py = rho * sin(-phi);
       ekf_.x_ << px, py, 0, 0;
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
@@ -156,7 +156,6 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
     ekf_.R_ = R_radar_;
-    ekf_.H_ = Hj_;
     ekf_.UpdateEKF(measurement_pack.raw_measurements_);
   } else {
     ekf_.R_ = R_laser_;
